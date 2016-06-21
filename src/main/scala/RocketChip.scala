@@ -123,8 +123,8 @@ object TopUtils {
     require(resetToMemDist == (resetToMemDist.toInt >> 12 << 12))
     val configStringAddr = p(ResetVector).toInt + rom.capacity
 
-    rom.putInt(0x00000297 + resetToMemDist.toInt) // auipc t0, &mem - &here
-    rom.putInt(0x00028067)                        // jr t0
+    rom.putInt(0x00000067)                        // loop forever
+    rom.putInt(0)                                 // reserved
     rom.putInt(0)                                 // reserved
     rom.putInt(configStringAddr)                  // pointer to config string
     rom.putInt(0)                                 // default trap vector

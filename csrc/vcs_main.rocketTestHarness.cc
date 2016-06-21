@@ -1,6 +1,7 @@
 // See LICENSE for license details.
 
 #include "htif_emulator.h"
+#include "dtm.h"
 #include "mm.h"
 #include "mm_dramsim2.h"
 #include <DirectC.h>
@@ -14,6 +15,7 @@ extern "C" {
 
 extern int vcs_main(int argc, char** argv);
 
+static dtm_t* dtm;
 static htif_emulator_t* htif;
 static unsigned htif_bytes = HTIF_WIDTH / 8;
 static mm_t* mm[N_MEM_CHANNELS];
@@ -40,6 +42,7 @@ int main(int argc, char** argv)
       memory_channel_mux_select = atoi(argv[i]+27);
   }
 
+  dtm = new dtm_t;
   htif = new htif_emulator_t(std::vector<std::string>(argv + 1, argv + argc));
 
   for (int i=0; i<N_MEM_CHANNELS; i++) {
@@ -202,6 +205,51 @@ void htif_tick
 
   bits.d = htif->done() ? (htif->exit_code() << 1 | 1) : 0;
   vc_put4stVector(exit, &bits);
+}
+
+void debug_tick
+(
+  vc_handle debug_req_valid,
+  vc_handle debug_req_ready,
+  vc_handle debug_req_bits_addr,
+  vc_handle debug_req_bits_op,
+  vc_handle debug_req_bits_data,
+  vc_handle debug_resp_valid,
+  vc_handle debug_resp_ready,
+  vc_handle debug_resp_bits_resp,
+  vc_handle debug_resp_bits_data
+)
+{
+  bool req_valid;
+  bool resp_ready;
+  vec32 tmp[2];
+
+  dtm_t::req req_bits;
+  dtm_t::resp resp_bits;
+  vc_get4stVector(debug_resp_bits_resp, tmp);
+  resp_bits.resp = tmp[0].d;
+  vc_get4stVector(debug_resp_bits_data, tmp);
+  resp_bits.data = tmp[0].d | ((uint64_t)tmp[1].d << 32);
+
+  dtm->tick
+  (
+    &req_valid,
+    vc_getScalar(debug_req_ready),
+    &req_bits,
+    vc_getScalar(debug_resp_valid),
+    &resp_ready,
+    resp_bits
+  );
+
+  vc_putScalar(debug_resp_ready, resp_ready);
+  vc_putScalar(debug_req_valid, req_valid);
+  tmp[0].d = req_bits.addr;
+  vc_put4stVector(debug_req_bits_addr, tmp);
+  tmp[0].d = req_bits.op;
+  vc_put4stVector(debug_req_bits_op, tmp);
+  tmp[0].d = req_bits.data;
+  tmp[1].d = req_bits.data >> 32;
+  vc_put4stVector(debug_req_bits_data, tmp);
 }
 
 }

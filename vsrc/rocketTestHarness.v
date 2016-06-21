@@ -2,6 +2,20 @@
 
 extern "A" void htif_fini(input reg failure);
 
+extern "A" void debug_tick
+(
+  output reg        debug_req_valid,
+  input  reg        debug_req_ready,
+  output reg [ 4:0] debug_req_bits_addr,
+  output reg [ 1:0] debug_req_bits_op,
+  output reg [33:0] debug_req_bits_data,
+
+  input  reg        debug_resp_valid,
+  output reg        debug_resp_ready,
+  input  reg [ 1:0] debug_resp_bits_resp,
+  input  reg [33:0] debug_resp_bits_data
+);
+
 extern "A" void htif_tick
 (
   output reg                    htif_in_valid,
@@ -112,6 +126,30 @@ module rocketTestHarness;
         htif_out_ready,
         htif_out_bits,
         exit
+      );
+    end
+  end
+
+  always @(posedge clk)
+  begin
+    if (reset || r_reset)
+    begin
+      debug_req_valid <= 0;
+      debug_resp_ready <= 0;
+    end
+    else
+    begin
+      debug_tick
+      (
+        debug_req_valid,
+        debug_req_ready,
+        debug_req_bits_addr,
+        debug_req_bits_op,
+        debug_req_bits_data,
+        debug_resp_valid,
+        debug_resp_ready,
+        debug_resp_bits_resp,
+        debug_resp_bits_data
       );
     end
   end

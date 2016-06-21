@@ -17,7 +17,60 @@ object TestBenchGeneration extends FileSystemUtilities {
     // bit collection on the DirectC side.  I had to individually define the
     // wires.
 
+    val daw = p(DMKey).nDebugBusAddrSize
+    val dow = DbBusConsts.dbOpSize
+    val ddw = DbBusConsts.dbDataSize
+    val drw = DbBusConsts.dbRespSize
+
+    val debugDefs = s"""
+  wire debug_req_valid_delay;
+  reg debug_req_valid;
+  assign #0.1 debug_req_valid_delay = debug_req_valid;
+
+  wire debug_req_ready, debug_req_ready_delay;
+  assign #0.1 debug_req_ready = debug_req_ready_delay;
+
+  wire [${daw-1}:0] debug_req_bits_addr_delay;
+  reg [${daw-1}:0] debug_req_bits_addr;
+  assign #0.1 debug_req_bits_addr_delay = debug_req_bits_addr;
+
+  wire [${dow-1}:0] debug_req_bits_op_delay;
+  reg [${dow-1}:0] debug_req_bits_op;
+  assign #0.1 debug_req_bits_op_delay = debug_req_bits_op;
+
+  wire [${ddw-1}:0] debug_req_bits_data_delay;
+  reg [${ddw-1}:0] debug_req_bits_data;
+  assign #0.1 debug_req_bits_data_delay = debug_req_bits_data;
+
+  wire debug_resp_valid, debug_resp_valid_delay;
+  assign #0.1 debug_resp_valid = debug_resp_valid_delay;
+
+  wire debug_resp_ready_delay;
+  reg debug_resp_ready;
+  assign #0.1 debug_resp_ready_delay = debug_resp_ready;
+
+  wire [${drw-1}:0] debug_resp_bits_resp, debug_resp_bits_resp_delay;
+  assign #0.1 debug_resp_bits_resp = debug_resp_bits_resp_delay;
+
+  wire [${ddw-1}:0] debug_resp_bits_data, debug_resp_bits_data_delay;
+  assign #0.1 debug_resp_bits_data = debug_resp_bits_data_delay;
+"""
+
+    val debugBus = s"""
+    .io_debug_req_ready(debug_req_ready_delay),
+    .io_debug_req_valid(debug_req_valid_delay),
+    .io_debug_req_bits_addr(debug_req_bits_addr_delay),
+    .io_debug_req_bits_op(debug_req_bits_op_delay),
+    .io_debug_req_bits_data(debug_req_bits_data_delay),
+    .io_debug_resp_ready(debug_resp_ready_delay),
+    .io_debug_resp_valid(debug_resp_valid_delay),
+    .io_debug_resp_bits_resp(debug_resp_bits_resp_delay),
+    .io_debug_resp_bits_data(debug_resp_bits_data_delay),
+"""
+
     val defs = s"""
+$debugDefs
+
   reg htif_out_ready;
   wire htif_in_valid;
   wire [`HTIF_WIDTH-1:0] htif_in_bits;
@@ -207,21 +260,6 @@ object TestBenchGeneration extends FileSystemUtilities {
     .io_interrupts_$i (1'b0),
 """ } mkString
 
-    val daw = p(DMKey).nDebugBusAddrSize
-    val dow = DbBusConsts.dbOpSize
-    val ddw = DbBusConsts.dbDataSize
-    val debug_bus = s"""
-  .io_debug_req_ready( ),
-  .io_debug_req_valid(1'b0),
-  .io_debug_req_bits_addr($daw'b0),
-  .io_debug_req_bits_op($dow'b0),
-  .io_debug_req_bits_data($ddw'b0),
-  .io_debug_resp_ready(1'b0),
-  .io_debug_resp_valid( ),
-  .io_debug_resp_bits_resp( ),
-  .io_debug_resp_bits_data( ),
-"""
-
 
     val instantiation = s"""
 `ifdef FPGA
@@ -237,7 +275,7 @@ object TestBenchGeneration extends FileSystemUtilities {
 
     $interrupts
 
-    $debug_bus
+    $debugBus
 
 `ifndef FPGA
     .io_host_clk(htif_clk),
